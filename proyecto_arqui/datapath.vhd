@@ -6,9 +6,9 @@ USE IEEE.STD_LOGIC_UNSIGNED.ALL;
 
 ENTITY datapath IS
 	PORT(
-		clk, rst : IN STD_LOGIC;
-		salida, s1,s2 : OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
-		--salida: OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
+		clk, rst, enter : IN STD_LOGIC;
+		mov : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
+		J1, J2, Turn, Mov_retro : OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
 		ins : OUT STD_LOGIC_VECTOR(11 DOWNTO 0);
 		z_flag, s_flag, ov_flag, c_flag : OUT STD_LOGIC
 	);
@@ -29,8 +29,8 @@ ARCHITECTURE bhr OF datapath IS
 	SIGNAL buff1: STD_LOGIC_VECTOR(7 DOWNTO 0):= "00001011";
 	SIGNAL buff2: STD_LOGIC_VECTOR(7 DOWNTO 0);
 
-	TYPE data IS ARRAY (11 DOWNTO 0) OF STD_LOGIC_VECTOR(15 DOWNTO 0);
-	TYPE list IS ARRAY (62 DOWNTO 0) OF STD_LOGIC_VECTOR(11 DOWNTO 0);
+	TYPE data IS ARRAY (7 DOWNTO 0) OF STD_LOGIC_VECTOR(15 DOWNTO 0);
+	TYPE list IS ARRAY (80 DOWNTO 0) OF STD_LOGIC_VECTOR(11 DOWNTO 0);
 	TYPE reg IS ARRAY(0 TO 7) OF STD_LOGIC_VECTOR(15 DOWNTO 0);
 	TYPE cmp IS ARRAY (10 DOWNTO 0) OF STD_LOGIC_VECTOR(15 DOWNTO 0);
 	
@@ -44,6 +44,17 @@ ARCHITECTURE bhr OF datapath IS
 	
 	CONSTANT values : data := (
 	-- Datos precargados en la "ROM" para usar despues en el programa
+		0  => "0000000000000000", -- Comenzar en 0
+		1  => "1111111111111111", -- 1nos de referencia
+		2  => "0000000000001000", -- 8 estados donde ganas
+		3  => "0000000000000001", -- Valor 1, para los ciclos
+		4  => "0000001000000000", -- limite real del tablero
+		5  => "0000000000000000", -- Placeholder
+		6  => "0000000000000000", -- Placeholder
+		7  => "0000000000000000" -- Placeholder
+	);
+	
+	CONSTANT tablero : data := (
 		0  => "0000000111000000", --Estados ganadores del tablero
 		1  => "0000000000111000",
 		2  => "0000000000000111",
@@ -51,17 +62,13 @@ ARCHITECTURE bhr OF datapath IS
 		4  => "0000000010010010",
 		5  => "0000000001001001",
 		6  => "0000000100010001",
-		7  => "0000000001010100",
-		8  => "0000000000000000", -- Comenzar en 0
-		9  => "1111111111111111", -- 1nos de referencia
-		10 => "0000000000001000", -- 8 estados donde ganas
-		11 => "0000000000000000"  -- 1 solo
+		7  => "0000000001010100"
 	);
 	
 	CONSTANT cmprs : cmp := (
 	--Aqui van almacenadas las "configuraciones" de el comparador y de las flags
 	--Carry, Zero, Overflow, Sign, Mayor, Igual, Menor
-		0   => "0000000000000000"  -- Salto directo sin comprobacion
+		0   => "0000000000000000",  -- Salto directo sin comprobacion
 		1   => "0000000000000001", -- El numero es menor
 		2   => "0000000000000010", -- El numero es igual
 		3   => "0000000000000011", -- El numero es menor o igual
@@ -71,87 +78,107 @@ ARCHITECTURE bhr OF datapath IS
 		7   => "0000000000001000", -- El numero es negativo
 		8   => "0000000000010000", -- El numero es muy grande
 		9   => "0000000000100000", -- El numero es cero
-		10  => "0000000001000000", -- El numero tiene un bit extra
+		10  => "0000000001000000"  -- El numero tiene un bit extra
 	);
 	
 	CONSTANT INSTRUCTIONS : list := (
 	
 		-- Comienza el juego del gato
-		0  => ("0000"&"1101"&"0000"&"1000"), -- Cargar jugador 1 en 0 
-		1  => ("0000"&"1101"&"0001"&"1000"), -- Cargar jugador 2 en 0 
-		2  => ("0000"&"1101"&"0010"&"1000"), -- Cargar Auxiliar  en 0
-		3  => ("0000"&"1101"&"0011"&"0001"), -- Cargar Ganadores con 0
-		4  => ("0000"&"1101"&"0100"&"1000"), -- Turno, empieza jugador 1
-		5  => ("0000"&"1101"&"0110"&"xxxx"), -- (No se como) Movimiento jugador
+		0  => ("0000"&"1101"&"0000"&"0000"), -- Cargar jugador 1 en 0 
+		1  => ("0000"&"1101"&"0001"&"0000"), -- Cargar jugador 2 en 0 
+		2  => ("0000"&"1101"&"0010"&"0000"), -- Cargar Auxiliar  en 0
+		4  => ("0000"&"1101"&"0100"&"0000"), -- Turno, empieza jugador 1
 		
-		6  => ("0000"&"0011"&"XXXX"&"0000"), -- Esta ocupada por jugador 1?
-		7  =>	("0000"&"1011"&"xxxx"&"xxxx"), -- si?
-		8  => ("1110"&"0010"&"0010"&"1011"), -- moverse a instruccion 43
+		5  => ("0010"&"1101"&"0110"&"0000"), -- Movimiento jugador
+		6  => ("0011"&"1101"&"0111"&"0110"), -- Movimiento jugador a aux
 		
-		9  => ("0000"&"0011"&"XXXX"&"0001"), -- Esta ocupada por jugador 2?
-		10 =>	("0000"&"1011"&"xxxx"&"xxxx"), -- si?
-		11 => ("1110"&"0010"&"0011"&"0101"), -- moverse a instruccion 53
+		7  => ("0000"&"0011"&"0110"&"0000"), -- Esta ocupada por jugador 1?
+		8  =>	("0000"&"1011"&"0110"&"0111"), -- si?
+		9  => ("1110"&"0010"&"0010"&"1100"), -- moverse a instruccion 44
 		
-		12 => ("0000"&"1101"&"0101"&"1001"), -- Cargar turno alternativo
-		13 => ("0000"&"1011"&"0101"&"1000"), -- turno jugador 2?
-		14 => ("1110"&"0010"&"0001"&"0000"), -- si, saltar a 16
-		15 => ("0000"&"0111"&"0000"&"xxxx"), -- guardar movimiento del jugador 1
+		10 => ("0011"&"1101"&"0111"&"0110"), -- Movimiento jugador a aux
+		11 => ("0000"&"0011"&"0110"&"0001"), -- Esta ocupada por jugador 2?
+		12 =>	("0000"&"1011"&"0110"&"0111"), -- si?
+		13 => ("1110"&"0010"&"0011"&"1010"), -- moverse a instruccion 58
+		
+		14 => ("0000"&"1101"&"0101"&"1001"), -- Cargar turno alternativo
+		15 => ("0000"&"1011"&"0101"&"1000"), -- turno jugador 2?
+		16 => ("1110"&"0010"&"0001"&"0100"), -- si, saltar a 20
+		17 => ("0000"&"0111"&"0000"&"0110"), -- guardar movimiento del jugador 1
 	
-		16 => ("0000"&"1011"&"0101"&"1000"), -- turno jugador 1?
-		17 => ("1110"&"0101"&"0001"&"0011"), -- si, saltar a 19
-		18 => ("0000"&"0111"&"0001"&"xxxx"), -- guardar movimiento del jugador 2
+		18 => ("0000"&"1011"&"0101"&"1000"), -- turno jugador 1?
+		19 => ("1110"&"0101"&"0001"&"0101"), -- si, saltar a 21
+		20 => ("0000"&"0111"&"0001"&"0110"), -- guardar movimiento del jugador 2
 		
-		--Las 2 siguientes secciones tienen un problema porque no se como hacer que una variable cambie dinamicamente
-		19 => ("0000"&"1101"&"1000"&"1000"), -- Empezar contador en 0
-		20 => ("0000"&"1101"&"1001"&"1010"), -- Empezar limite en 8
-		21 => ("0000"&"1011"&"0000"&"0001"), -- Gano jugador 1?
-		22 => ("1110"&"0010"&"0010"&"1001"), -- si, mover a 41
-		23 =>	("0000"&"0111"&"1000"&"1011"), -- Contador ++
-		24 =>	("0000"&"1011"&"1000"&"1001"), -- Contador mayor a 8?
-		25 => ("1110"&"0100"&"0010"&"0111"), -- si saltar a 39
-		26 => ("0000"&"0000"&"0000"&"0000"), -- aumentar tablero
-		27 => ("1110"&"0000"&"0001"&"0101"), -- repetir 21
+		21 => ("0000"&"1101"&"1000"&"1000"), -- Empezar contador en 0
+		22 => ("0000"&"1101"&"1001"&"1010"), -- Empezar limite en 8
+		23 => ("0001"&"1101"&"0011"&"1000"), -- Cargar Ganadores con 0
+		24 => ("0000"&"1101"&"1011"&"0011"), -- Cargar Sumando = 1
+		25 => ("0000"&"1011"&"0000"&"0001"), -- Gano jugador 1?
+		26 => ("1110"&"0010"&"0010"&"1110"), -- si, mover a 46
+		27 =>	("0000"&"0111"&"1000"&"1011"), -- Contador ++
+		28 =>	("0000"&"1011"&"1000"&"1001"), -- Contador mayor a 8?
+		29 => ("1110"&"0110"&"0010"&"0000"), -- si saltar a 32
+		30 => ("0001"&"1101"&"0011"&"1000"), -- aumentar tablero
+		31 => ("1110"&"0000"&"0001"&"1001"), -- repetir 25
 		
-		28 => ("0000"&"1101"&"1000"&"1000"), -- Empezar contador en 0
-		29 => ("0000"&"1101"&"1001"&"1010"), -- Empezar limite en 8
-		30 => ("0000"&"1101"&"0011"&"0001"), -- Cargar Ganadores con 0
-		31 => ("0000"&"1011"&"0001"&"0001"), -- Gano jugador 2?
-		32 => ("1110"&"0100"&"0010"&"1001"), -- si, mover a 41
-		33 =>	("0000"&"0111"&"1000"&"1011"), -- Contador ++
-		34 =>	("0000"&"1011"&"1000"&"1001"), -- Contador mayor a 8?
-		35 => ("1110"&"0010"&"0010"&"0111"), -- si saltar a 39
-		36 => ("0000"&"0000"&"0000"&"0000"), -- aumentar tablero
-		37 => ("1110"&"0000"&"0001"&"1111"), -- repetir 31
+		32 => ("0000"&"1101"&"1000"&"1000"), -- Empezar contador en 0
+		33 => ("0000"&"1101"&"1001"&"1010"), -- Empezar limite en 8
+		34 => ("0001"&"1101"&"0011"&"1000"), -- Cargar Ganadores con 0
+		35 => ("0000"&"1101"&"1011"&"0011"), -- Cargar Sumando = 1
+		36 => ("0000"&"1011"&"0001"&"0001"), -- Gano jugador 2?
+		37 => ("1110"&"0010"&"0010"&"1110"), -- si, mover a 46
+		38 =>	("0000"&"0111"&"1000"&"1011"), -- Contador ++
+		39 =>	("0000"&"1011"&"1000"&"1001"), -- Contador igual a 8?
+		40 => ("1110"&"0010"&"0010"&"1100"), -- si saltar a 44
+		41 => ("0001"&"1101"&"0011"&"1000"), -- aumentar tablero
+		42 => ("1110"&"0000"&"0010"&"0100"), -- repetir 36
 		
-		38 => ("1110"&"0000"&"0000"&"0000"), -- tablero lleno, reiniciar
+		43 => ("1110"&"0000"&"0000"&"0000"), -- tablero lleno, reiniciar
 		
-		39 => ("0000"&"0001"&"0100"&"0000"), -- pasar turno, aplicar (not)
-		40 => ("1110"&"0000"&"0000"&"0101"), -- repetir ins 5
+	   44 => ("0000"&"0001"&"0100"&"0000"), -- pasar turno, aplicar (not)
+		45 => ("1110"&"0000"&"0000"&"0101"), -- repetir ins 5
+	
+		46 => ("1111"&"1111"&"1111"&"1111"), -- esperar
+		47 => ("0000"&"0000"&"0000"&"0000"), -- reiniciar
+	
+		48 => ("0000"&"1101"&"1000"&"0000"), -- Empezar contador en 0
+		49 => ("0000"&"1101"&"1001"&"0010"), -- Empezar limite en 8
+		50 => ("0000"&"1101"&"1010"&"0100"), -- Cargar Limite  del tablero
+		51 => ("0000"&"1101"&"1011"&"0011"), -- Cargar Sumando = 1
+		52 =>	("0000"&"0101"&"0110"&"0000"), -- Mover la seleccion en 1
+		53 =>	("0000"&"1011"&"0110"&"1010"), -- La seleccion ya esta en el limite del tablero?
+		54 =>	("1110"&"0010"&"0100"&"1110"), -- si, ir a 78
+		55 =>	("0000"&"1011"&"1000"&"1001"), -- Contador mayor a 8?
+		56 =>	("1110"&"0010"&"0010"&"1011"), -- si, ir a 43
+		57 =>	("0000"&"0111"&"1000"&"1011"), -- Contador ++
+		58 => ("0011"&"1101"&"0111"&"0110"), -- Movimiento jugador a aux
+		59 => ("0000"&"0011"&"0110"&"0000"), -- Esta ocupada por jugador 1?
+		60 =>	("0000"&"1011"&"0110"&"0111"), -- si?
+		61 => ("1110"&"0010"&"0011"&"0100"), -- Si repetir 52
+		62 => ("1110"&"0000"&"0000"&"1010"), -- Volver a  10
+	
+		63 => ("0000"&"1101"&"1000"&"1000"), -- Empezar contador en 0
+		64 => ("0000"&"1101"&"1001"&"1010"), -- Empezar limite en 8
+		65 => ("0000"&"1101"&"1010"&"0100"), -- Cargar Limite  del tablero
+		66 => ("0000"&"1101"&"1011"&"0011"), -- Cargar Sumando = 1
+		67 =>	("0000"&"0101"&"0110"&"0000"), -- Mover la seleccion en 1
+		68 =>	("0000"&"1011"&"0110"&"1010"), -- La seleccion ya esta en el limite del tablero?
+		69 =>	("1110"&"0010"&"0010"&"0110"), -- si, ir a 80
+		70 =>	("0000"&"1011"&"1000"&"1001"), -- Contador mayor a 8?
+		71 =>	("1110"&"0010"&"0101"&"0000"), -- si, ir a 43
+		72 =>	("0000"&"0111"&"1000"&"1011"), -- Contador ++
+		73 => ("0011"&"1101"&"0111"&"0110"), -- Movimiento jugador a aux
+		74 => ("0000"&"0011"&"0110"&"0001"), -- Esta ocupada por jugador 2?
+		75 =>	("0000"&"1011"&"0110"&"0111"), -- si?
+		76 => ("1110"&"0010"&"0100"&"0011"), -- Si repetir 67
+		77 => ("1110"&"0000"&"0000"&"1110"),  -- Volver a 14
 		
-		41 => ("0000"&"0000"&"0000"&"0000"), -- esperar
-		42 => ("0000"&"0000"&"0000"&"0000"), -- reiniciar
-		
-		43 => ("0000"&"1101"&"1000"&"1000"), -- Empezar contador en 0
-		44 => ("0000"&"1101"&"1001"&"1010"), -- Empezar limite en 8
-		45 =>	("0000"&"0000"&"0000"&"0000"), -- Mover la seleccion en 1
-		46 =>	("0000"&"1011"&"1000"&"1001"), -- Contador mayor a 8?
-		47 =>	("1110"&"0010"&"0010"&"0110"), -- si, ir a 38
-		48 =>	("0000"&"0111"&"1000"&"1011"), -- Contador ++
-		49 => ("0000"&"0011"&"XXXX"&"0000"), -- Esta ocupada
-		50 =>	("0000"&"1011"&"xxxx"&"xxxx"), -- si?
-		51 => ("1110"&"0010"&"xxxx"&"xxxx"), -- Si repetir 45
-		52 => ("1110"&"0000"&"xxxx"&"xxxx"), -- Volver a  8
-		
-		53 => ("0000"&"1101"&"1000"&"1000"), -- Empezar contador en 0
-		54 => ("0000"&"1101"&"1001"&"1010"), -- Empezar limite en 8
-		55 =>	("0000"&"0000"&"0000"&"0000"), -- Mover la seleccion en 1
-		56 =>	("0000"&"1011"&"1000"&"1001"), -- Contador mayor a 8?
-		57 =>	("1110"&"0010"&"0010"&"0110"), -- si, ir a 38
-		58 =>	("0000"&"0111"&"1000"&"1011"), -- Contador ++
-		59 => ("0000"&"0011"&"XXXX"&"0001"), -- Esta ocupada
-		60 =>	("0000"&"1011"&"xxxx"&"xxxx"), -- si?
-		61 => ("1110"&"0010"&"0011"&"0111"), -- Si repetir 55
-		62 => ("1110"&"0000"&"0000"&"1011"), -- Volver a  11
+		78 => ("0000"&"1011"&"0110"&"0011"), -- Reiniciar el tablero
+		79 => ("1110"&"0000"&"0011"&"0111"),  -- Volver a 55
+	
+		80 => ("0000"&"1011"&"0110"&"0011"), -- Reiniciar el tablero
+		81 => ("1110"&"0000"&"0100"&"0110")  -- Volver a 70
 	);
 	
 	COMPONENT ALU IS 
@@ -181,7 +208,16 @@ BEGIN
 				WHEN state1 => -- DECODE
 					IF (MAR(11 DOWNTO 8) /= "1111") THEN
 						IF (MAR(11 DOWNTO 8) = "1101") THEN --En caso que la instruccion sea load
-							REG_D <= values(to_integer(unsigned(MAR(3 DOWNTO 0))));
+							IF (MAR(15 DOWNTO 12) = "0001") THEN
+								REG_C <= unsigned(MAR(3 DOWNTO 0));
+								REG_D <= tablero(to_integer());
+							ELSIF (MAR(15 DOWNTO 12) = "0010") THEN
+								REG_D <= mov;
+							ELSIF (MAR(15 DOWNTO 12) = "0011") THEN
+								REG_D <= reggy(to_integer(unsigned(MAR(3 DOWNTO 0))));
+							ELSE
+								REG_D <= values(to_integer(unsigned(MAR(3 DOWNTO 0))));
+							END IF;
 							OFFSET <= 1;
 						
 						ELSIF (MAR(15 DOWNTO 12) = "1110") THEN -- jump 
@@ -212,9 +248,9 @@ BEGIN
 							-- El resto de operaciones son controladas por la ALU
 							OP <= MAR(11 DOWNTO 8);
 							REG_A <= reggy(to_integer(unsigned(MAR(7 DOWNTO 4))));
-							s1 <= REG_A;
+							J1 <= REG_A;
 							REG_B <= reggy(to_integer(unsigned(MAR(3 DOWNTO 0))));
-							s2 <= REG_B;
+							J2 <= REG_B;
 							OFFSET <= 1;
 						END IF;
 					END IF;
@@ -239,22 +275,11 @@ BEGIN
 					PC_AUX <= PC + OFFSET;
 					PC <= PC_AUX;
 					pr_state <= state0;
+					Turn <= reggy(4);
+					Mov_retro <= reggy(2);
 					END IF;
 				
 				WHEN state3 => 
-					IF (reggy(0)(15) = '1') THEN
-						salida <= '0' & reggy(0)(14 DOWNTO 0);
-						z_flag <= zflag;
-						s_flag <= '1';
-						ov_flag <= ovflag;
-						c_flag <= cflag;
-					ELSE
-						salida <= reggy(0);
-						z_flag <= zflag;
-						s_flag <= sflag;
-						ov_flag <= ovflag;
-						c_flag <= cflag;
-					END IF;
 					pr_state <= state3;
 			END CASE;
 		END IF;
