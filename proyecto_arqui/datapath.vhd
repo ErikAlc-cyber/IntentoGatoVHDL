@@ -9,7 +9,7 @@ ENTITY datapath IS
 		clk, rst, enter : IN STD_LOGIC;
 		mov : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
 		J1, J2, Turn, Mov_retro : OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
-		ins : OUT STD_LOGIC_VECTOR(11 DOWNTO 0);
+		ins : OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
 		z_flag, s_flag, ov_flag, c_flag : OUT STD_LOGIC
 	);
 END ENTITY datapath;
@@ -30,7 +30,7 @@ ARCHITECTURE bhr OF datapath IS
 	SIGNAL buff2: STD_LOGIC_VECTOR(7 DOWNTO 0);
 
 	TYPE data IS ARRAY (7 DOWNTO 0) OF STD_LOGIC_VECTOR(15 DOWNTO 0);
-	TYPE list IS ARRAY (80 DOWNTO 0) OF STD_LOGIC_VECTOR(11 DOWNTO 0);
+	TYPE list IS ARRAY (81 DOWNTO 0) OF STD_LOGIC_VECTOR(15 DOWNTO 0);
 	TYPE reg IS ARRAY(0 TO 7) OF STD_LOGIC_VECTOR(15 DOWNTO 0);
 	TYPE cmp IS ARRAY (10 DOWNTO 0) OF STD_LOGIC_VECTOR(15 DOWNTO 0);
 	
@@ -82,39 +82,39 @@ ARCHITECTURE bhr OF datapath IS
 	);
 	
 	CONSTANT INSTRUCTIONS : list := (
-	
 		-- Comienza el juego del gato
-		0  => ("0000"&"1101"&"0000"&"0000"), -- Cargar jugador 1 en 0 
-		1  => ("0000"&"1101"&"0001"&"0000"), -- Cargar jugador 2 en 0 
-		2  => ("0000"&"1101"&"0010"&"0000"), -- Cargar Auxiliar  en 0
-		4  => ("0000"&"1101"&"0100"&"0000"), -- Turno, empieza jugador 1
+		0  => ("0000"&"0000"&"0000"&"0000"), -- placeholder
+		1  => ("0000"&"1101"&"0000"&"0000"), -- Cargar jugador 1 en 0 
+		2  => ("0000"&"1101"&"0001"&"0000"), -- Cargar jugador 2 en 0 
+		3  => ("0000"&"1101"&"0010"&"0000"), -- Cargar Auxiliar  en 0
+		4  => ("0000"&"1101"&"0011"&"0000"), -- Turno, empieza jugador 1
 		
 		5  => ("0010"&"1101"&"0110"&"0000"), -- Movimiento jugador
-		6  => ("0011"&"1101"&"0111"&"0110"), -- Movimiento jugador a aux
+		6  => ("0011"&"1101"&"0010"&"0110"), -- Movimiento jugador a aux
 		
-		7  => ("0000"&"0011"&"0110"&"0000"), -- Esta ocupada por jugador 1?
-		8  =>	("0000"&"1011"&"0110"&"0111"), -- si?
+		7  => ("0000"&"0011"&"0010"&"0110"), -- Esta ocupada por jugador 1?
+		8  =>	("0000"&"1011"&"0110"&"0010"), -- si?
 		9  => ("1110"&"0010"&"0010"&"1100"), -- moverse a instruccion 44
 		
-		10 => ("0011"&"1101"&"0111"&"0110"), -- Movimiento jugador a aux
-		11 => ("0000"&"0011"&"0110"&"0001"), -- Esta ocupada por jugador 2?
+		10 => ("0011"&"1101"&"0010"&"0110"), -- Movimiento jugador a aux
+		11 => ("0000"&"0011"&"0010"&"0110"), -- Esta ocupada por jugador 2?
 		12 =>	("0000"&"1011"&"0110"&"0111"), -- si?
 		13 => ("1110"&"0010"&"0011"&"1010"), -- moverse a instruccion 58
 		
-		14 => ("0000"&"1101"&"0101"&"1001"), -- Cargar turno alternativo
-		15 => ("0000"&"1011"&"0101"&"1000"), -- turno jugador 2?
+		14 => ("0000"&"1101"&"0100"&"0001"), -- Cargar turno alternativo
+		15 => ("0000"&"1011"&"0011"&"0100"), -- turno jugador 2?
 		16 => ("1110"&"0010"&"0001"&"0100"), -- si, saltar a 20
 		17 => ("0000"&"0111"&"0000"&"0110"), -- guardar movimiento del jugador 1
 	
-		18 => ("0000"&"1011"&"0101"&"1000"), -- turno jugador 1?
+		18 => ("0000"&"1011"&"0011"&"0000"), -- turno jugador 1?
 		19 => ("1110"&"0101"&"0001"&"0101"), -- si, saltar a 21
 		20 => ("0000"&"0111"&"0001"&"0110"), -- guardar movimiento del jugador 2
 		
-		21 => ("0000"&"1101"&"1000"&"1000"), -- Empezar contador en 0
-		22 => ("0000"&"1101"&"1001"&"1010"), -- Empezar limite en 8
-		23 => ("0001"&"1101"&"0011"&"1000"), -- Cargar Ganadores con 0
+		21 => ("0000"&"1101"&"1000"&"0000"), -- Empezar contador en 0
+		22 => ("0000"&"1101"&"1001"&"0010"), -- Empezar limite en 8
+		23 => ("0001"&"1101"&"0011"&"0000"), -- Cargar Ganadores con 0
 		24 => ("0000"&"1101"&"1011"&"0011"), -- Cargar Sumando = 1
-		25 => ("0000"&"1011"&"0000"&"0001"), -- Gano jugador 1?
+		25 => ("0000"&"1011"&"0000"&"0011"), -- Gano jugador 1?
 		26 => ("1110"&"0010"&"0010"&"1110"), -- si, mover a 46
 		27 =>	("0000"&"0111"&"1000"&"1011"), -- Contador ++
 		28 =>	("0000"&"1011"&"1000"&"1001"), -- Contador mayor a 8?
@@ -122,11 +122,11 @@ ARCHITECTURE bhr OF datapath IS
 		30 => ("0001"&"1101"&"0011"&"1000"), -- aumentar tablero
 		31 => ("1110"&"0000"&"0001"&"1001"), -- repetir 25
 		
-		32 => ("0000"&"1101"&"1000"&"1000"), -- Empezar contador en 0
-		33 => ("0000"&"1101"&"1001"&"1010"), -- Empezar limite en 8
+		32 => ("0000"&"1101"&"1000"&"0000"), -- Empezar contador en 0
+		33 => ("0000"&"1101"&"1001"&"0010"), -- Empezar limite en 8
 		34 => ("0001"&"1101"&"0011"&"1000"), -- Cargar Ganadores con 0
 		35 => ("0000"&"1101"&"1011"&"0011"), -- Cargar Sumando = 1
-		36 => ("0000"&"1011"&"0001"&"0001"), -- Gano jugador 2?
+		36 => ("0000"&"1011"&"0001"&"0011"), -- Gano jugador 2?
 		37 => ("1110"&"0010"&"0010"&"1110"), -- si, mover a 46
 		38 =>	("0000"&"0111"&"1000"&"1011"), -- Contador ++
 		39 =>	("0000"&"1011"&"1000"&"1001"), -- Contador igual a 8?
@@ -134,13 +134,13 @@ ARCHITECTURE bhr OF datapath IS
 		41 => ("0001"&"1101"&"0011"&"1000"), -- aumentar tablero
 		42 => ("1110"&"0000"&"0010"&"0100"), -- repetir 36
 		
-		43 => ("1110"&"0000"&"0000"&"0000"), -- tablero lleno, reiniciar
+		43 => ("1110"&"0000"&"0000"&"0001"), -- tablero lleno, reiniciar
 		
-	   44 => ("0000"&"0001"&"0100"&"0000"), -- pasar turno, aplicar (not)
+	   44 => ("0000"&"0001"&"0000"&"0011"), -- pasar turno, aplicar (not)
 		45 => ("1110"&"0000"&"0000"&"0101"), -- repetir ins 5
 	
 		46 => ("1111"&"1111"&"1111"&"1111"), -- esperar
-		47 => ("0000"&"0000"&"0000"&"0000"), -- reiniciar
+		47 => ("1110"&"0000"&"0000"&"0001"), -- reiniciar
 	
 		48 => ("0000"&"1101"&"1000"&"0000"), -- Empezar contador en 0
 		49 => ("0000"&"1101"&"1001"&"0010"), -- Empezar limite en 8
@@ -209,8 +209,7 @@ BEGIN
 					IF (MAR(11 DOWNTO 8) /= "1111") THEN
 						IF (MAR(11 DOWNTO 8) = "1101") THEN --En caso que la instruccion sea load
 							IF (MAR(15 DOWNTO 12) = "0001") THEN
-								REG_C <= unsigned(MAR(3 DOWNTO 0));
-								REG_D <= tablero(to_integer());
+								REG_D <= tablero(to_integer(unsigned(MAR(3 DOWNTO 0))));
 							ELSIF (MAR(15 DOWNTO 12) = "0010") THEN
 								REG_D <= mov;
 							ELSIF (MAR(15 DOWNTO 12) = "0011") THEN
@@ -275,7 +274,7 @@ BEGIN
 					PC_AUX <= PC + OFFSET;
 					PC <= PC_AUX;
 					pr_state <= state0;
-					Turn <= reggy(4);
+					Turn <= reggy(3);
 					Mov_retro <= reggy(2);
 					END IF;
 				
