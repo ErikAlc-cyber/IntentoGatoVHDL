@@ -104,7 +104,7 @@ BEGIN
 				R <= ua_sal;
 			WHEN "1011" => --Comparacion
 				sel_aux <= "00";
-				R <= "000000000" & cf_aux & z_aux & ov_aux & s_aux & gtt_aux & eqq_aux & ltt_aux;
+				R <= "0000000000000" & gtt_aux & eqq_aux & ltt_aux;
 			WHEN OTHERS => 
 				R <= "1111111111111111";
 				sel_aux <= "00";
