@@ -1,0 +1,113 @@
+-- Comienza el juego del gato
+		0  => ("0000"&"1101"&"0110"&"0000"), -- Cargar 0 de referencia
+		1  => ("0000"&"1101"&"0001"&"0000"), -- Cargar jugador 1 en 0 
+		2  => ("0000"&"1101"&"0010"&"0000"), -- Cargar jugador 2 en 0 
+		3  => ("0000"&"1101"&"0000"&"0000"), -- Cargar Auxiliar  en 0
+		4  => ("0000"&"1101"&"0011"&"0000"), -- Turno, empieza jugador 1
+		
+		--En espera de un movimiento
+		5  => ("0010"&"1101"&"0100"&"0000"), -- Movimiento jugador
+		6  => ("0000"&"1011"&"0100"&"0110"), -- El movimiento es 0?
+		7  => ("1110"&"0010"&"0000"&"0101"), -- Repetir 5
+		
+		--Chequeo rapido, esta ocupada la casilla J1
+		8  => ("0011"&"1101"&"0000"&"0100"), -- Movimiento jugador a aux
+		9  => ("0000"&"0011"&"0000"&"0001"), -- Esta ocupada por jugador 1?
+		10 => ("0000"&"1011"&"0000"&"0100"), -- si?
+		11 => ("1110"&"0010"&"0011"&"0101"), -- ocupado_por_jugador_1() [53]
+		
+		--Chequeo rapido, esta ocupada la casilla J2
+		12 => ("0011"&"1101"&"0000"&"0100"), -- Movimiento jugador a aux
+		13 => ("0000"&"0011"&"0000"&"0010"), -- Esta ocupada por jugador 2?
+		14 => ("0000"&"1011"&"0000"&"0100"), -- si?
+		15 => ("1110"&"0010"&"1000"&"0100"), -- ocupado_por_jugador_2() [68]
+		
+		--Guardar el movimiento Jugador 2
+		16 => ("0000"&"1101"&"0101"&"0001"), -- Cargar turno alternativo
+		17 => ("0000"&"1011"&"0011"&"0101"), -- turno jugador 2?
+		18 => ("1110"&"0010"&"0001"&"0111"), -- si, saltar a 23
+		19 => ("0000"&"0111"&"0001"&"0000"), -- guardar movimiento del jugador 1
+		20 => ("1110"&"0000"&"0001"&"0101"), -- Gano_J_1() [21]
+	
+		--Guardar el movimiento Jugador 1
+		21 => ("0000"&"1011"&"0011"&"0110"), -- turno jugador 1?
+		22 => ("1110"&"0010"&"0001"&"1001"), -- si, saltar a 25
+		23 => ("0000"&"0111"&"0010"&"0000"), -- guardar movimiento del jugador 2
+		24 => ("1110"&"0000"&"0010"&"0110"), -- Gano_J_2() [38]
+		
+		--Funcion Gano_J_1()
+		25 => ("0000"&"1101"&"0111"&"0000"), -- Empezar contador en 0
+		26 => ("0000"&"1101"&"1000"&"0010"), -- Empezar limite en 8
+		27 => ("0011"&"1101"&"1100"&"0001"), -- Cargar Auxiliar_Gan con tablero J1
+		28 => ("0000"&"1101"&"1010"&"0011"), -- Cargar Sumando = 1
+		29 => ("0001"&"1101"&"1001"&"0111"), -- Cargar Ganadores con contador
+		30 => ("0000"&"0011"&"1100"&"1001"), -- Auxiliar_Gan AND Ganador
+		31 => ("0000"&"1011"&"1100"&"1001"), -- Gano jugador 1?
+		32 => ("1110"&"0010"&"0011"&"0100"), -- si, Fin_Juego() [52]
+		33 => ("0000"&"0111"&"0111"&"1010"), -- Contador ++
+		34 => ("0000"&"1011"&"0111"&"1000"), -- Contador mayor o igual a 8?
+		35 => ("1110"&"0110"&"0011"&"0010"), -- si saltar a 50
+		36 => ("1110"&"0000"&"0001"&"1101"), -- repetir 29
+		
+		--Funcion Gano_J_2()
+		37 => ("0000"&"1101"&"0111"&"0000"), -- Empezar contador en 0
+		38 => ("0000"&"1101"&"1000"&"0010"), -- Empezar limite en 8
+		39 => ("0011"&"1101"&"1100"&"0010"), -- Cargar Auxiliar_Gan con tablero J2
+		40 => ("0000"&"1101"&"1010"&"0011"), -- Cargar Sumando = 1
+		41 => ("0001"&"1101"&"1001"&"0111"), -- Cargar Ganadores con contador
+		42 => ("0000"&"0011"&"1100"&"1001"), -- Auxiliar_Gan AND Ganador
+		43 => ("0000"&"1011"&"1100"&"1001"), -- Gano jugador 2?
+		44 => ("1110"&"0010"&"0011"&"0100"), -- si, Fin_Juego() 
+		45 => ("0000"&"0111"&"0111"&"1010"), -- Contador ++
+		46 => ("0000"&"1011"&"0111"&"1000"), -- Contador igual a 8?
+		47 => ("1110"&"0010"&"0011"&"0010"), -- si saltar a 50
+		48 => ("1110"&"0000"&"0010"&"1001"), -- repetir 41
+		
+		--Funcion Reiniciar_Juego()
+		49 => ("1110"&"0000"&"0000"&"0000"), -- tablero lleno, reiniciar
+		
+		--Continuar el juego
+	   50 => ("0000"&"0001"&"0011"&"0000"), -- pasar turno, aplicar (not)
+		51 => ("1110"&"0000"&"0000"&"0101"), -- repetir juego
+	
+		--Funcion Fin_Juego()
+		52 => ("0000"&"1111"&"0000"&"0000"), -- esperar
+
+		--Funcion ocupado_por_jugador_1()
+		53 => ("0000"&"1101"&"0111"&"0000"), -- Empezar contador en 0
+		54 => ("0000"&"1101"&"1000"&"0010"), -- Empezar limite en 8
+		55 => ("0000"&"1101"&"1011"&"0100"), -- Cargar Limite  del tablero
+		56 => ("0000"&"1101"&"1010"&"0011"), -- Cargar Sumando = 1
+		57 => ("0000"&"0101"&"0000"&"0000"), -- Mover la seleccion en 1
+		58 => ("0000"&"1011"&"1011"&"0000"), -- La seleccion ya esta en el limite del tablero?
+		59 => ("1110"&"0010"&"0101"&"0001"), -- si, restablecer_lim_tablero() [81]
+		60 => ("0000"&"1011"&"0111"&"1000"), -- Contador mayor a 8?
+		61 => ("1110"&"0010"&"0011"&"0001"), -- si, Reiniciar_Juego() [49] 
+		62 => ("0000"&"0111"&"0111"&"1010"), -- Contador ++
+		63 => ("0000"&"0011"&"0000"&"0001"), -- Esta ocupada por jugador 1?
+		64 => ("0000"&"1011"&"0000"&"0100"), -- si?
+		65 => ("1110"&"0010"&"0011"&"1001"), -- Si repetir 57
+		66 => ("1110"&"0000"&"0000"&"1100"), -- Volver a  12
+	
+		--Funcion ocupado_por_jugador_2()
+		67 => ("0000"&"1101"&"0111"&"0000"), -- Empezar contador en 0
+		68 => ("0000"&"1101"&"1000"&"0010"), -- Empezar limite en 8
+		69 => ("0000"&"1101"&"1011"&"0100"), -- Cargar Limite  del tablero
+		70 => ("0000"&"1101"&"1010"&"0011"), -- Cargar Sumando = 1
+		71 => ("0000"&"0101"&"0000"&"0000"), -- Mover la seleccion en 1
+		72 => ("0000"&"1011"&"1011"&"0000"), -- La seleccion ya esta en el limite del tablero?
+		73 => ("1110"&"0010"&"0101"&"0011"), -- si, restablecer_lim_tablero() [83]
+		74 => ("0000"&"1011"&"0111"&"1000"), -- Contador mayor a 8?
+		75 => ("1110"&"0010"&"0011"&"0001"), -- si, Reiniciar_Juego() [49]
+		76 => ("0000"&"0111"&"0111"&"1010"), -- Contador ++
+		77 => ("0000"&"0011"&"0000"&"0010"), -- Esta ocupada por jugador 2?
+		78 => ("0000"&"1011"&"0000"&"0100"), -- si?
+		79 => ("1110"&"0010"&"0100"&"0111"), -- Si repetir 71
+		80 => ("1110"&"0000"&"0000"&"1000"), -- Volver a 8
+		
+		--Funcion restablecer_lim_tablero()
+		81 => ("0000"&"1101"&"0000"&"0011"), -- Reiniciar el movimiento
+		82 => ("1110"&"0000"&"0011"&"1100"), -- Volver a 60
+	
+		83 => ("0000"&"1101"&"0000"&"0011"), -- Reiniciar el movimiento
+		84 => ("1110"&"0000"&"0100"&"1010")  -- Volver a 74
